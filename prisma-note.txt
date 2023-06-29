@@ -1,0 +1,8 @@
+npx prisma migrate dev --name init 
+
+// Update prisma sceme
+prisma db push
+prisma migrate dev
+
+// generate prisma client 
+prisma generate 
