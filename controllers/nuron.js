@@ -93,3 +93,16 @@ exports.contactUs = async (req, res) => {
     res.status(500).json();
   }
 };
+exports.newsletter = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const validationErrors = validationResult(req).errors;
+    if (validationErrors.length != 0) return res.status(400).json({ errors: { validationErrors } });
+
+    await prisma.newsletter.create({ data: { email: email } });
+    res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
+};

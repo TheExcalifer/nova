@@ -25,3 +25,6 @@ exports.contactUs = [
   body('subject').trim().escape().isLength({ min: 10, max: 64 }).isString(),
   body('message').trim().escape().isLength({ min: 10, max: 300 }).isString(),
 ];
+exports.newsletter = [
+  body('email').trim().toLowerCase().escape().isString().normalizeEmail().isEmail().isLength({ min: 3, max: 254 }),
+];

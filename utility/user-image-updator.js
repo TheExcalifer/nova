@@ -38,9 +38,9 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
 
   form.parse(req, async (err, fields, files) => {
     if (err?.code == formidableErrors.biggerThanTotalMaxFileSize) {
-      return res.status(400).json();
+      return res.status(400).json({ errors: { maxSize: true } });
     }
-    if (fileExtensionError) return res.status(400).json();
+    if (fileExtensionError) return res.status(400).json({ errors: { allowFormat: true } });
     await prisma.user.update({
       where: {
         email: req.user.email,
@@ -51,7 +51,7 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
     });
     if (previousImages[dbColumnName])
       await unlink(path.join('public', 'user', uplodaDir, previousImages[dbColumnName]));
-      
+
     res.status(200).json();
   });
 };
