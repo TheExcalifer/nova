@@ -9,6 +9,7 @@ const userController = require('../controllers/user');
 
 // authenticator
 const isAuth = require('../middleware/is-auth');
-routes.post('/edit/profile-image', userController.editProfileImage);
+routes.post('/edit/profile-image', isAuth, userController.editProfileImage);
+routes.post('/edit/cover-image', isAuth, userController.editCoverImage);
 
 module.exports = routes;

@@ -31,7 +31,7 @@ exports.signup = async (req, res) => {
 
     res.status(201).json(createdUser);
   } catch (error) {
-    res.status(500).json({ msg: 'Error occured' });
+    res.status(500).json();
   }
 };
 
@@ -67,7 +67,9 @@ exports.login = async (req, res) => {
       { expiresIn: '1h' }
     );
     res.status(200).json({ token });
-  } catch (error) {}
+  } catch (error) {
+    res.status(500).json();
+  }
 };
 
 exports.contactUs = async (req, res) => {
@@ -86,6 +88,8 @@ exports.contactUs = async (req, res) => {
       },
     });
 
-    res.status(200).json({ createdMessage });
-  } catch (error) {}
+    res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
 };
