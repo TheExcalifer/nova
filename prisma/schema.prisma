@@ -21,9 +21,10 @@ model User {
   role          String? @db.VarChar(64)
   gender        String? @db.VarChar(16)
   currency      String? @db.VarChar(16)
-  phone_number  String? @db.VarChar(15)
+  phone_number  String? @db.VarChar(16)
   location      String? @db.VarChar(32)
   address       String? @db.VarChar(128)
+  bio           String? @db.VarChar(256)
 }
 
 model Contact {
