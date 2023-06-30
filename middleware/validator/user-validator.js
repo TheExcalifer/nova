@@ -32,3 +32,14 @@ exports.editProfileInformation = [
     }),
   body('address').trim().escape().isString().isLength({ min: 0, max: 128 }),
 ];
+exports.changePassword = [
+  body('oldPassword').trim().isLength({ min: 8, max: 128 }).isString(),
+  body('password').trim().isLength({ min: 8, max: 128 }).isString(),
+  body('rePassword')
+    .trim()
+    .isLength({ min: 8, max: 128 })
+    .isString()
+    .custom((value, { req }) => {
+      return value === req.body.password;
+    }),
+];

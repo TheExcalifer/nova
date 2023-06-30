@@ -18,5 +18,11 @@ routes.put(
   userValidator.editProfileInformation,
   userController.editProfileInformation
 );
+routes.put(
+  '/edit/password',
+  isAuth,
+  userValidator.changePassword,
+  userController.changePassword
+);
 
 module.exports = routes;
