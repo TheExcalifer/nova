@@ -1,6 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const extensionExtractor = require('../utility/extension-extractor');
 const jwt = require('jsonwebtoken');
@@ -11,25 +10,59 @@ const addDays = require('../utility/add-days');
 const path = require('path');
 exports.signup = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, email, password, rePassword, agree } = req.body;
 
-    const validationErrors = validationResult(req).errors;
-    if (validationErrors.length != 0) return res.status(400).json({ errors: { validationErrors } });
+    const schema = Joi.object().keys({
+      firstName: Joi.string()
+        .trim()
+        .min(3)
+        .max(64)
+        .required()
+        .custom((value) => escapeHtml(value)),
+      lastName: Joi.string()
+        .trim()
+        .min(3)
+        .max(64)
+        .required()
+        .custom((value) => escapeHtml(value)),
+      email: Joi.string().lowercase().email().min(3).max(254).required(),
+      password: Joi.string().trim().min(8).max(128).required(),
+      rePassword: Joi.string()
+        .trim()
+        .min(8)
+        .max(128)
+        .required()
+        .custom((value, helpers) => {
+          if (password == rePassword) return value;
+          return helpers.message('password and rePassword does not match');
+        }),
+      agree: Joi.bool().valid(true).required(),
+    });
 
+    const validationResult = schema.validate({
+      firstName,
+      lastName,
+      email,
+      password,
+      rePassword,
+      agree,
+    });
+
+    if (validationResult.error) return res.status(400).json(validationResult.error);
     const userExist = await prisma.user.findFirst({
       where: {
-        email: email,
+        email: validationResult.value.email,
       },
     });
-    if (userExist) return res.status(400).json({ errors: { userExist: true } });
+    if (userExist) return res.status(400).json({ userExist: 'Email exist' });
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(validationResult.value.password, 12);
 
     const createdUser = await prisma.user.create({
       data: {
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
+        first_name: validationResult.value.firstName,
+        last_name: validationResult.value.lastName,
+        email: validationResult.value.email,
         password: hashedPassword,
       },
     });
@@ -43,24 +76,34 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const validationErrors = validationResult(req).errors;
-    if (validationErrors.length != 0) return res.status(400).json({ errors: { validationErrors } });
+
+    const schema = Joi.object().keys({
+      email: Joi.string().lowercase().email().min(3).max(254).required(),
+      password: Joi.string().trim().min(8).max(128).required(),
+    });
+
+    const validationResult = schema.validate({
+      email,
+      password,
+    });
+
+    if (validationResult.error) return res.status(400).json(validationResult.error);
 
     const user = await prisma.user.findFirst({
       where: {
-        email: email,
+        email: validationResult.value.email,
       },
     });
     if (!user)
       return res.status(400).json({
-        errors: { userOrPassword: 'Email or password is incorrect' },
+        userOrPassword: 'Email or password is incorrect',
       });
 
     const isCorrectPassword = await bcrypt.compare(password, user.password);
 
     if (!isCorrectPassword)
       return res.status(400).json({
-        errors: { userOrPassword: 'Email or password is incorrect' },
+        userOrPassword: 'Email or password is incorrect',
       });
 
     const token = jwt.sign(
@@ -69,7 +112,7 @@ exports.login = async (req, res) => {
         email: user.email,
       },
       '4LZpJPii2NW4NFJxTwueL76XnqZPn4Qr',
-      { expiresIn: '1h' }
+      { expiresIn: '6h' }
     );
     res.status(200).json({ token });
   } catch (error) {
@@ -81,15 +124,40 @@ exports.contactUs = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
-    const validationErrors = validationResult(req).errors;
-    if (validationErrors.length != 0) return res.status(400).json({ errors: { validationErrors } });
+    const schema = Joi.object().keys({
+      name: Joi.string()
+        .min(3)
+        .max(128)
+        .required()
+        .custom((value) => escapeHtml(value)),
+      email: Joi.string().lowercase().email().min(3).max(254).required(),
+      subject: Joi.string()
+        .min(10)
+        .max(64)
+        .required()
+        .custom((value) => escapeHtml(value)),
+      message: Joi.string()
+        .min(10)
+        .max(300)
+        .required()
+        .custom((value) => escapeHtml(value)),
+    });
+
+    const validationResult = schema.validate({
+      name,
+      email,
+      subject,
+      message,
+    });
+
+    if (validationResult.error) return res.status(400).json(validationResult.error);
 
     const createdMessage = await prisma.contact.create({
       data: {
-        name,
-        email,
-        subject,
-        message,
+        name: validationResult.value.name,
+        email: validationResult.value.email,
+        subject: validationResult.value.subject,
+        message: validationResult.value.message,
       },
     });
 
@@ -103,10 +171,17 @@ exports.newsletter = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const validationErrors = validationResult(req).errors;
-    if (validationErrors.length != 0) return res.status(400).json({ errors: { validationErrors } });
+    const schema = Joi.object().keys({
+      email: Joi.string().lowercase().email().min(3).max(254).required(),
+    });
 
-    await prisma.newsletter.create({ data: { email: email } });
+    const validationResult = schema.validate({
+      email,
+    });
+
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    await prisma.newsletter.create({ data: { email: validationResult.value.email } });
     res.status(200).json();
   } catch (error) {
     res.status(500).json();
@@ -146,12 +221,14 @@ exports.createNFT = async (req, res) => {
       const schema = Joi.object().keys({
         productName: Joi.string()
           .trim()
+          .required()
           .custom((value) => escapeHtml(value)),
         description: Joi.string()
           .trim()
+          .required()
           .custom((value) => escapeHtml(value)),
-        royality: Joi.number().max(99),
-        categoryId: Joi.number(),
+        royality: Joi.number().max(99).required(),
+        categoryId: Joi.number().required(),
       });
 
       const validationResult = schema.validate({
@@ -163,13 +240,12 @@ exports.createNFT = async (req, res) => {
 
       // Error handling
       const existCategory = await prisma.category.findFirst({ where: { id: validationResult.value.categoryId } });
-      if (!existCategory) return res.status(400).json({ errors: { invalidCategoryId: true } });
+      if (!existCategory) return res.status(400).json({ invalidCategoryId: 'Category is invalid' });
 
-      if (validationResult.error)
-        return res.status(400).json({ errors: { validationResult: validationResult.error.details } });
+      if (validationResult.error) return res.status(400).json(validationResult.error);
 
-      if (err?.code == 1015) return res.status(400).json({ errors: { maxFileNumber: true } });
-      if (fileExtensionError) return res.status(400).json({ errors: { allowFormat: true } });
+      if (err?.code == 1015) return res.status(400).json({ maxFileNumber: 'Max number of file is 3' });
+      if (fileExtensionError) return res.status(400).json({ allowFormat: 'Allow formats: jpeg, jpg, png' });
 
       const createdProduct = await prisma.product.create({
         data: {
@@ -183,7 +259,7 @@ exports.createNFT = async (req, res) => {
           Product_Image: { createMany: { data: productImagesName } },
         },
       });
-      
+
       res.status(200).json(createdProduct);
     });
   } catch (error) {

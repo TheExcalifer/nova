@@ -38,9 +38,9 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
 
   form.parse(req, async (err, fields, files) => {
     if (err?.code == formidableErrors.biggerThanTotalMaxFileSize) {
-      return res.status(400).json({ errors: { maxSize: true } });
+      return res.status(400).json({ maxSize: 'Max file size is 200kb' });
     }
-    if (fileExtensionError) return res.status(400).json({ errors: { allowFormat: true } });
+    if (fileExtensionError) return res.status(400).json({ allowFormat: 'Allow formats: jpeg, jpg, png' });
     await prisma.user.update({
       where: {
         email: req.user.email,

@@ -6,7 +6,7 @@ module.exports = (req, res, next) => {
     try {
       decodedToken = jwt.verify(token, '4LZpJPii2NW4NFJxTwueL76XnqZPn4Qr');
     } catch (error) {
-      return res.status(401).json({ errors: { authentication: 'You are not autheticated' } });
+      return res.status(401).json({authentication: 'You are not autheticated' });
     }
     req.user = decodedToken;
     next();
