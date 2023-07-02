@@ -17,7 +17,7 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
   });
   let fileExtensionError;
   const form = formidable({
-    maxFileSize: 1 * 1024 * 1024,
+    maxFileSize: 1 * 200 * 1024,
     uploadDir: path.join('public', 'user', uplodaDir),
     maxFiles: 1,
     filter: ({ name, originalFilename, mimetype }) => {

@@ -1,4 +1,4 @@
-const { body } = require('express-validator');
+const { body} = require('express-validator');
 exports.signup = [
   body('firstName').trim().escape().isLength({ min: 3, max: 64 }).isString(),
   body('lastName').trim().escape().isLength({ min: 3, max: 64 }).isString(),
