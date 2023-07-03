@@ -12,5 +12,6 @@ routes.post('/login', nuronController.login);
 routes.post('/contact-us', nuronController.contactUs);
 routes.post('/newsletter', nuronController.newsletter);
 routes.post('/create-nft', isAuth, nuronController.createNFT);
+routes.get('/categories', nuronController.getCategories);
 
 module.exports = routes;

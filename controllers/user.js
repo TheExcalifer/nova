@@ -151,3 +151,12 @@ exports.changePassword = async (req, res) => {
     res.status(500).json();
   }
 };
+
+exports.getMe = async (req, res) => {
+  try {
+    const user = await prisma.user.findFirst({ where: { email: req.user.email } });
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
