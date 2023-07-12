@@ -154,7 +154,25 @@ exports.changePassword = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await prisma.user.findFirst({ where: { email: req.user.email } });
+    const user = await prisma.user.findFirst({
+      where: { email: req.user.email },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        profile_image: true,
+        cover_image: true,
+        role: true,
+        gender: true,
+        currency: true,
+        phone_number: true,
+        location: true,
+        address: true,
+        bio: true,
+        balance: true,
+      },
+    });
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json();

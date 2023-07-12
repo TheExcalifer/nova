@@ -67,7 +67,7 @@ exports.signup = async (req, res) => {
       },
     });
 
-    res.status(201).json(createdUser);
+    res.status(201).json();
   } catch (error) {
     res.status(500).json();
   }
@@ -190,17 +190,18 @@ exports.newsletter = async (req, res) => {
 
 exports.createNFT = async (req, res) => {
   try {
+    const PRODUCT_PATH = '/product/';
     let fileExtensionError;
     const productImagesName = [];
     // Upload Config
     const form = formidable({
       maxFiles: 3,
       maxFileSize: 1 * 200 * 1024,
-      uploadDir: path.join('public', 'user', 'product'),
+      uploadDir: path.join('public', 'product'),
       filter: ({ name, originalFilename, mimetype }) => {
         if (name != 'productImages') return false;
         const fileExtension = extensionExtractor(originalFilename);
-        if (fileExtension != 'png' && fileExtension && 'jpg' && fileExtension != 'jpeg') {
+        if (fileExtension != 'png' && fileExtension != 'jpg' && fileExtension != 'jpeg') {
           fileExtensionError = true;
           return false;
         }
@@ -210,13 +211,14 @@ exports.createNFT = async (req, res) => {
         const fileExtension = extensionExtractor(part.originalFilename);
         const randomNumber = Math.round(Math.random() * 1e10);
         const newFileName = `${randomNumber}.${fileExtension}`;
-        productImagesName.push({ image: newFileName });
+        productImagesName.push({ image: PRODUCT_PATH + newFileName });
         return newFileName;
       },
     });
 
     form.parse(req, async (err, fields, files) => {
       const { productName, description, royality, categoryId } = fields;
+
       // Validation
       const schema = Joi.object().keys({
         productName: Joi.string()
@@ -227,10 +229,9 @@ exports.createNFT = async (req, res) => {
           .trim()
           .required()
           .custom((value) => escapeHtml(value)),
-        royality: Joi.number().max(99).required(),
+        royality: Joi.number().min(0).max(99).required(),
         categoryId: Joi.number().required(),
       });
-
       const validationResult = schema.validate({
         productName: productName[0],
         description: description[0],
@@ -239,12 +240,19 @@ exports.createNFT = async (req, res) => {
       });
 
       // Error handling
+      if (files.productImages?.length != 3) return res.status(400).json({ invalidTotalFiles: 'You must send 3 files' });
+
       const existCategory = await prisma.category.findFirst({ where: { id: validationResult.value.categoryId } });
       if (!existCategory) return res.status(400).json({ invalidCategoryId: 'Category is invalid' });
 
       if (validationResult.error) return res.status(400).json(validationResult.error);
 
-      if (err?.code == 1015) return res.status(400).json({ maxFileNumber: 'Max number of file is 3' });
+      if (err?.code == formidableErrors.biggerThanTotalMaxFileSize)
+        return res.status(400).json({ maxFileNumber: 'Max file size is 200kb' });
+
+      if (err?.code == formidableErrors.maxFilesExceeded)
+        return res.status(400).json({ maxFileNumber: 'Max number of file is 3' });
+
       if (fileExtensionError) return res.status(400).json({ allowFormat: 'Allow formats: jpeg, jpg, png' });
 
       const createdProduct = await prisma.product.create({
@@ -271,6 +279,70 @@ exports.getCategories = async (req, res) => {
   try {
     const categories = await prisma.category.findMany();
     res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.getProduct = async (req, res) => {
+  try {
+    const productId = Number(req.params.id);
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+      },
+      include: {
+        Product_Image: {
+          select: {
+            image: true,
+          },
+        },
+        Likes: true,
+        category: true,
+        Bids: true,
+        owner: { select: { id: true, first_name: true } },
+        creator: {
+          select: {
+            id: true,
+            first_name: true,
+          },
+        },
+      },
+    });
+    if (!product) return res.status(404).json();
+    res.status(200).json(product);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+exports.favorite = async (req, res) => {
+  try {
+    const productId = req.body.productId;
+    // Validation
+    const schema = Joi.object().keys({
+      productId: Joi.number().positive().required(),
+    });
+    const validationResult = schema.validate({
+      productId,
+    });
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    // Prevent twice like a product from same user
+    const likedBefore = await prisma.likes.findFirst({
+      where: {
+        userId: req.user.id,
+        productId: validationResult.value.productId,
+      },
+    });
+    if (likedBefore) return res.status(400).json({ twiceLike: 'You liked this post already' });
+
+    await prisma.likes.create({
+      data: {
+        productId: validationResult.value.productId,
+        userId: req.user.id,
+      },
+    });
+    res.status(200).json();
   } catch (error) {
     res.status(500).json();
   }

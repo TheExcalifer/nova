@@ -6,6 +6,8 @@ const { formidable, errors: formidableErrors } = require('formidable');
 const { unlink } = require('fs').promises;
 // TODO Refactor needed
 module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
+  let imagePath = '/user/cover/';
+  if (uplodaDir === 'profile') imagePath = '/user/profile/';
   const previousImages = await prisma.user.findFirst({
     where: {
       email: req.user.email,
@@ -46,11 +48,10 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
         email: req.user.email,
       },
       data: {
-        [dbColumnName]: files[imageKeyName][0].newFilename,
+        [dbColumnName]: imagePath + files[imageKeyName][0].newFilename,
       },
     });
-    if (previousImages[dbColumnName])
-      await unlink(path.join('public', 'user', uplodaDir, previousImages[dbColumnName]));
+    if (previousImages[dbColumnName]) await unlink(path.join('public', ...previousImages[dbColumnName].split('/')));
 
     res.status(200).json();
   });
