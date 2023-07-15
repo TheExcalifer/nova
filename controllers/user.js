@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
 const userImageUpdator = require('../utility/user-image-updator');
 const Joi = require('joi');
-const { escapeHtml } = require('@hapi/hoek');
+const { escapeHtml, wait } = require('@hapi/hoek');
 exports.editProfileImage = async (req, res) => {
   try {
     userImageUpdator(req, res, 'profile', 'profile', 'profile_image');
@@ -174,6 +174,228 @@ exports.getMe = async (req, res) => {
       },
     });
     res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.createNFT = async (req, res) => {
+  try {
+    const PRODUCT_PATH = '/product/';
+    let fileExtensionError;
+    const productImagesName = [];
+    // Upload Config
+    const form = formidable({
+      maxFiles: 3,
+      maxFileSize: 1 * 200 * 1024,
+      uploadDir: path.join('public', 'product'),
+      filter: ({ name, originalFilename, mimetype }) => {
+        if (name != 'productImages') return false;
+        const fileExtension = extensionExtractor(originalFilename);
+        if (fileExtension != 'png' && fileExtension != 'jpg' && fileExtension != 'jpeg') {
+          fileExtensionError = true;
+          return false;
+        }
+        return true;
+      },
+      filename: (name, ext, part, form) => {
+        const fileExtension = extensionExtractor(part.originalFilename);
+        const randomNumber = Math.round(Math.random() * 1e10);
+        const newFileName = `${randomNumber}.${fileExtension}`;
+        productImagesName.push({ image: PRODUCT_PATH + newFileName });
+        return newFileName;
+      },
+    });
+
+    form.parse(req, async (err, fields, files) => {
+      const { productName, description, royality, categoryId } = fields;
+
+      // Validation
+      const schema = Joi.object().keys({
+        productName: Joi.string()
+          .trim()
+          .required()
+          .custom((value) => escapeHtml(value)),
+        description: Joi.string()
+          .trim()
+          .required()
+          .custom((value) => escapeHtml(value)),
+        royality: Joi.number().min(0).max(99).required(),
+        categoryId: Joi.number().required(),
+      });
+      const validationResult = schema.validate({
+        productName: productName[0],
+        description: description[0],
+        royality: Number(royality[0]),
+        categoryId: Number(categoryId[0]),
+      });
+
+      // Error handling
+      if (files.productImages?.length != 3) return res.status(400).json({ invalidTotalFiles: 'You must send 3 files' });
+
+      const existCategory = await prisma.category.findFirst({ where: { id: validationResult.value.categoryId } });
+      if (!existCategory) return res.status(400).json({ invalidCategoryId: 'Category is invalid' });
+
+      if (validationResult.error) return res.status(400).json(validationResult.error);
+
+      if (err?.code == formidableErrors.biggerThanTotalMaxFileSize)
+        return res.status(400).json({ maxFileNumber: 'Max file size is 200kb' });
+
+      if (err?.code == formidableErrors.maxFilesExceeded)
+        return res.status(400).json({ maxFileNumber: 'Max number of file is 3' });
+
+      if (fileExtensionError) return res.status(400).json({ allowFormat: 'Allow formats: jpeg, jpg, png' });
+
+      const createdProduct = await prisma.product.create({
+        data: {
+          productName: validationResult.value.productName,
+          description: validationResult.value.description,
+          royality: validationResult.value.royality,
+          categoryId: validationResult.value.categoryId,
+          creatorId: req.user.id,
+          ownerId: req.user.id,
+          activeUntil: addDays(new Date(), 1),
+          Product_Image: { createMany: { data: productImagesName } },
+        },
+      });
+
+      res.status(200).json(createdProduct);
+    });
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+exports.favorite = async (req, res) => {
+  try {
+    const productId = req.body.productId;
+    // Validation
+    const schema = Joi.object().keys({
+      productId: Joi.number().positive().required(),
+    });
+    const validationResult = schema.validate({
+      productId,
+    });
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    // Prevent twice like a product from same user
+    const likedBefore = await prisma.likes.findFirst({
+      where: {
+        userId: req.user.id,
+        productId: validationResult.value.productId,
+      },
+    });
+    if (likedBefore) return res.status(400).json({ twiceLike: 'You liked this post already' });
+
+    await prisma.likes.create({
+      data: {
+        productId: validationResult.value.productId,
+        userId: req.user.id,
+      },
+    });
+    res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+exports.unfavorite = async (req, res) => {
+  try {
+    const productId = req.body.productId;
+
+    // Validation
+    const schema = Joi.object().keys({
+      productId: Joi.number().positive().required(),
+    });
+    const validationResult = schema.validate({
+      productId,
+    });
+
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    await prisma.likes.deleteMany({
+      where: { userId: req.user.id, productId: validationResult.value.productId },
+    });
+
+    res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+exports.bid = async (req, res) => {
+  try {
+    const { productId, bidAmount } = req.body;
+
+    // Validation
+    const schema = Joi.object().keys({
+      productId: Joi.number()
+        .positive()
+        .required()
+        .custom((value) => Number(value.toFixed(2))),
+      bidAmount: Joi.number()
+        .positive()
+        .required()
+        .custom((value) => Number(value.toFixed(2))),
+    });
+    const validationResult = schema.validate({
+      productId,
+      bidAmount,
+    });
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    // Check user balance
+    const { balance: userBalance } = await prisma.user.findFirst({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        balance: true,
+      },
+    });
+
+    // Check total user bids amount
+    const {
+      _sum: { bidAmount: totalUserActiveBidsAmount },
+    } = await prisma.bids.aggregate({
+      where: {
+        userId: req.user.id,
+        active: true,
+      },
+      _sum: {
+        bidAmount: true,
+      },
+    });
+    
+    const userAvailableMoney = userBalance - totalUserActiveBidsAmount;
+    
+    if (userAvailableMoney < validationResult.value.bidAmount)
+      return res.status(400).json({ notEnoughMoney: 'Your balance is not enough' });
+
+    const product = await prisma.product.findFirst({
+      where: {
+        id: validationResult.value.productId,
+      },
+      include: {
+        Bids: {
+          take: 1,
+          orderBy: { bidAmount: 'desc' },
+        },
+      },
+    });
+    const { bidAmount: highestBidAmount } = product.Bids.at(0) ?? Number.NEGATIVE_INFINITY;
+
+    if (product.expireTime < Date.now()) return res.status(400).json({ expireTime: 'bid time has ended' });
+
+    if (validationResult.value.bidAmount <= highestBidAmount)
+      return res.status(400).json({ notEnoughBid: 'Your bid amount is not enough' });
+
+    await prisma.bids.create({
+      data: {
+        userId: req.user.id,
+        productId: validationResult.value.productId,
+        bidAmount: validationResult.value.bidAmount,
+      },
+    });
+
+    return res.status(200).json();
   } catch (error) {
     res.status(500).json();
   }

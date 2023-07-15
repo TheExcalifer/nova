@@ -25,10 +25,11 @@ model User {
   location      String?   @db.VarChar(32)
   address       String?   @db.VarChar(128)
   bio           String?   @db.VarChar(256)
-  balance       Decimal   @default(1000) @db.Decimal(15, 4)
+  balance       Decimal   @default(1000) @db.Decimal(13, 2)
   creator       Product[] @relation(name: "creator")
   owner         Product[] @relation(name: "owner")
   Likes         Likes[]
+  Bids          Bids[]
 }
 
 model Contact {
@@ -54,7 +55,7 @@ model Product {
   creator       User            @relation(name: "creator", fields: [creatorId], references: [id])
   creatorId     Int
   Bids          Bids[]
-  activeUntil   DateTime?       @default(now())
+  expireTime    DateTime?       @default(now())
   Product_Image Product_Image[]
   owner         User            @relation(name: "owner", fields: [ownerId], references: [id])
   ownerId       Int
@@ -70,9 +71,13 @@ model Product_Image {
 
 model Bids {
   id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
   product   Product  @relation(fields: [productId], references: [id])
   productId Int
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  bidAmount Decimal  @db.Decimal(13, 2)
+  createdAt DateTime @default(now())
+  active    Boolean  @default(true)
 }
 
 model Category {
