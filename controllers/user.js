@@ -3,7 +3,11 @@ const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
 const userImageUpdator = require('../utility/user-image-updator');
 const Joi = require('joi');
-const { escapeHtml, wait } = require('@hapi/hoek');
+const { escapeHtml } = require('@hapi/hoek');
+const { formidable, errors: formidableErrors } = require('formidable');
+const path = require('path');
+const extensionExtractor = require('../utility/extension-extractor');
+const addDays = require('../utility/add-days');
 exports.editProfileImage = async (req, res) => {
   try {
     userImageUpdator(req, res, 'profile', 'profile', 'profile_image');
@@ -209,7 +213,6 @@ exports.createNFT = async (req, res) => {
 
     form.parse(req, async (err, fields, files) => {
       const { productName, description, royality, categoryId } = fields;
-
       // Validation
       const schema = Joi.object().keys({
         productName: Joi.string()
@@ -254,7 +257,7 @@ exports.createNFT = async (req, res) => {
           categoryId: validationResult.value.categoryId,
           creatorId: req.user.id,
           ownerId: req.user.id,
-          activeUntil: addDays(new Date(), 1),
+          expireTime: addDays(new Date(), 1),
           Product_Image: { createMany: { data: productImagesName } },
         },
       });
@@ -363,9 +366,9 @@ exports.bid = async (req, res) => {
         bidAmount: true,
       },
     });
-    
+
     const userAvailableMoney = userBalance - totalUserActiveBidsAmount;
-    
+
     if (userAvailableMoney < validationResult.value.bidAmount)
       return res.status(400).json({ notEnoughMoney: 'Your balance is not enough' });
 

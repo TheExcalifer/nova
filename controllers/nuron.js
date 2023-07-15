@@ -1,13 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
-const extensionExtractor = require('../utility/extension-extractor');
 const jwt = require('jsonwebtoken');
-const { formidable, errors: formidableErrors } = require('formidable');
 const Joi = require('joi');
 const { escapeHtml } = require('@hapi/hoek');
-const addDays = require('../utility/add-days');
-const path = require('path');
 
 exports.signup = async (req, res) => {
   try {
@@ -229,6 +225,7 @@ exports.getProduct = async (req, res) => {
     res.status(500).json();
   }
 };
+
 exports.getRecentView = async (req, res) => {
   try {
     const { products: productsArray } = req.body;
@@ -250,6 +247,7 @@ exports.getRecentView = async (req, res) => {
     res.status(500).json();
   }
 };
+
 exports.getRelatedProductByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
@@ -267,6 +265,80 @@ exports.getRelatedProductByCategory = async (req, res) => {
       },
     });
     res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.getProducts = async (req, res) => {
+  try {
+    const { page, sortByLeastLike, categoryId, minPrice, maxPrice } = req.body;
+    const ITEM_PER_PAGE = 10;
+    const schema = Joi.object().keys({
+      page: Joi.number().required().positive(),
+      sortByLeastLike: Joi.boolean().required(),
+      categoryId: Joi.number().positive(),
+      minPrice: Joi.number().positive(),
+      maxPrice: Joi.number().positive(),
+    });
+    const validationResult = schema.validate({
+      page,
+      sortByLeastLike,
+      categoryId,
+      minPrice,
+      maxPrice,
+    });
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+    // Filter Conditions
+    let minAndMaxPriceCondition = (minPrice, maxPrice) => {
+      if (minPrice && maxPrice) {
+        return {
+          AND: [{ bidAmount: { gte: minPrice } }, { bidAmount: { lte: maxPrice } }],
+        };
+      }
+    };
+    let sortByLeastLikeCondition = (sortByLeastLike) => {
+      if (sortByLeastLike) {
+        return {
+          Likes: {
+            _count: 'asc',
+          },
+        };
+      }
+    };
+    const products = await prisma.product.findMany({
+      where: {
+        categoryId: validationResult.value.categoryId,
+      },
+      where: {
+        Bids: {
+          some: minAndMaxPriceCondition(minPrice, maxPrice),
+        },
+      },
+      include: {
+        Likes: true,
+        Bids: { orderBy: { bidAmount: 'desc' } },
+      },
+      orderBy: sortByLeastLikeCondition(sortByLeastLike),
+      skip: (page - 1) * ITEM_PER_PAGE,
+      take: ITEM_PER_PAGE,
+    });
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.getProductsPrice = async (req, res) => {
+  try {
+    const {
+      _min: { bidAmount: minPrice },
+      _max: { bidAmount: maxPrice },
+    } = await prisma.bids.aggregate({
+      _min: { bidAmount: true },
+      _max: { bidAmount: true },
+    });
+    res.status(200).json({ minPrice: Number(minPrice), maxPrice: Number(maxPrice) });
   } catch (error) {
     res.status(500).json();
   }
