@@ -23,4 +23,6 @@ routes.post('/recent-view', nuronController.getRecentView);
 routes.post('/products', nuronController.getProducts);
 routes.get('/products-price', nuronController.getProductsPrice);
 
+routes.get('/live-bidding', nuronController.getLiveBidding);
+
 module.exports = routes;

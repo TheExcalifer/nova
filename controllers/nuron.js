@@ -343,3 +343,16 @@ exports.getProductsPrice = async (req, res) => {
     res.status(500).json();
   }
 };
+exports.getLiveBidding = async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: {
+        expireTime: { gt: new Date() },
+      },
+      take: 8,
+    });
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
