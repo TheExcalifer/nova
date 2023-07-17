@@ -9,6 +9,7 @@ exports.signup = async (req, res) => {
   try {
     const { firstName, lastName, email, password, rePassword, agree } = req.body;
 
+    // Validation
     const schema = Joi.object().keys({
       firstName: Joi.string()
         .trim()
@@ -45,7 +46,9 @@ exports.signup = async (req, res) => {
       agree,
     });
 
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
+
     const userExist = await prisma.user.findFirst({
       where: {
         email: validationResult.value.email,
@@ -53,8 +56,10 @@ exports.signup = async (req, res) => {
     });
     if (userExist) return res.status(400).json({ userExist: 'Email exist' });
 
+    // Convert password to hash
     const hashedPassword = await bcrypt.hash(validationResult.value.password, 12);
 
+    // Create User
     const createdUser = await prisma.user.create({
       data: {
         first_name: validationResult.value.firstName,
@@ -74,16 +79,17 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Validation
     const schema = Joi.object().keys({
       email: Joi.string().lowercase().email().min(3).max(254).required(),
       password: Joi.string().trim().min(8).max(128).required(),
     });
-
     const validationResult = schema.validate({
       email,
       password,
     });
 
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
     const user = await prisma.user.findFirst({
@@ -97,20 +103,19 @@ exports.login = async (req, res) => {
       });
 
     const isCorrectPassword = await bcrypt.compare(password, user.password);
-
     if (!isCorrectPassword)
       return res.status(400).json({
         userOrPassword: 'Email or password is incorrect',
       });
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-      },
-      '4LZpJPii2NW4NFJxTwueL76XnqZPn4Qr',
-      { expiresIn: '6h' }
-    );
+    // ! JWT Token must transfer to .env and chnage it's value
+    const JWT_SECRET = '4LZpJPii2NW4NFJxTwueL76XnqZPn4Qr';
+    const payload = {
+      id: user.id,
+      email: user.email,
+    };
+    const expireTime = { expiresIn: '6h' };
+    const token = jwt.sign(payload, JWT_SECRET, expireTime);
     res.status(200).json({ token });
   } catch (error) {
     res.status(500).json();
@@ -121,6 +126,7 @@ exports.contactUs = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
+    // Validation
     const schema = Joi.object().keys({
       name: Joi.string()
         .min(3)
@@ -139,7 +145,6 @@ exports.contactUs = async (req, res) => {
         .required()
         .custom((value) => escapeHtml(value)),
     });
-
     const validationResult = schema.validate({
       name,
       email,
@@ -147,9 +152,10 @@ exports.contactUs = async (req, res) => {
       message,
     });
 
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
-    const createdMessage = await prisma.contact.create({
+    await prisma.contact.create({
       data: {
         name: validationResult.value.name,
         email: validationResult.value.email,
@@ -158,7 +164,7 @@ exports.contactUs = async (req, res) => {
       },
     });
 
-    res.status(200).json();
+    res.status(201).json();
   } catch (error) {
     res.status(500).json();
   }
@@ -168,18 +174,20 @@ exports.newsletter = async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Validation
     const schema = Joi.object().keys({
       email: Joi.string().lowercase().email().min(3).max(254).required(),
     });
-
     const validationResult = schema.validate({
       email,
     });
 
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
     await prisma.newsletter.create({ data: { email: validationResult.value.email } });
-    res.status(200).json();
+
+    res.status(201).json();
   } catch (error) {
     res.status(500).json();
   }
@@ -188,6 +196,7 @@ exports.newsletter = async (req, res) => {
 exports.getCategories = async (req, res) => {
   try {
     const categories = await prisma.category.findMany();
+
     res.status(200).json(categories);
   } catch (error) {
     res.status(500).json();
@@ -197,6 +206,7 @@ exports.getCategories = async (req, res) => {
 exports.getProduct = async (req, res) => {
   try {
     const productId = Number(req.params.id);
+
     const product = await prisma.product.findFirst({
       where: {
         id: productId,
@@ -219,7 +229,10 @@ exports.getProduct = async (req, res) => {
         },
       },
     });
+
+    // Error Handling
     if (!product) return res.status(404).json();
+
     res.status(200).json(product);
   } catch (error) {
     res.status(500).json();
@@ -229,12 +242,16 @@ exports.getProduct = async (req, res) => {
 exports.getRecentView = async (req, res) => {
   try {
     const { products: productsArray } = req.body;
+
+    // Validation
     const schema = Joi.object().keys({
       productsArray: Joi.array().min(1).max(4).required().items(Joi.number()),
     });
     const validationResult = schema.validate({
       productsArray,
     });
+
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
     const products = await prisma.product.findMany({
@@ -242,6 +259,7 @@ exports.getRecentView = async (req, res) => {
         id: { in: validationResult.value.productsArray },
       },
     });
+
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json();
@@ -251,12 +269,16 @@ exports.getRecentView = async (req, res) => {
 exports.getRelatedProductByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
+    
+    // Validation
     const schema = Joi.object().keys({
       categoryId: Joi.number().required(),
     });
     const validationResult = schema.validate({
       categoryId,
     });
+
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
     const products = await prisma.product.findMany({
@@ -264,6 +286,7 @@ exports.getRelatedProductByCategory = async (req, res) => {
         categoryId: validationResult.value.categoryId,
       },
     });
+
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json();
@@ -273,7 +296,10 @@ exports.getRelatedProductByCategory = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const { page, sortByLeastLike, categoryId, minPrice, maxPrice } = req.body;
+
     const ITEM_PER_PAGE = 10;
+
+    // Validation
     const schema = Joi.object().keys({
       page: Joi.number().required().positive(),
       sortByLeastLike: Joi.boolean().required(),
@@ -288,7 +314,10 @@ exports.getProducts = async (req, res) => {
       minPrice,
       maxPrice,
     });
+
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
+
     // Filter Conditions
     let minAndMaxPriceCondition = (minPrice, maxPrice) => {
       if (minPrice && maxPrice) {
@@ -306,6 +335,7 @@ exports.getProducts = async (req, res) => {
         };
       }
     };
+
     const products = await prisma.product.findMany({
       where: {
         categoryId: validationResult.value.categoryId,
@@ -323,6 +353,7 @@ exports.getProducts = async (req, res) => {
       skip: (page - 1) * ITEM_PER_PAGE,
       take: ITEM_PER_PAGE,
     });
+    
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json();
@@ -338,11 +369,13 @@ exports.getProductsPrice = async (req, res) => {
       _min: { bidAmount: true },
       _max: { bidAmount: true },
     });
+    
     res.status(200).json({ minPrice: Number(minPrice), maxPrice: Number(maxPrice) });
   } catch (error) {
     res.status(500).json();
   }
 };
+
 exports.getLiveBidding = async (req, res) => {
   try {
     const products = await prisma.product.findMany({

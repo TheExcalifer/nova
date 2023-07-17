@@ -1,11 +1,8 @@
 const express = require('express');
 const routes = express.Router();
 
-// controllers
+// Controllers
 const nuronController = require('../controllers/nuron');
-
-// authenticator
-const isAuth = require('../middleware/is-auth');
 
 routes.post('/signup', nuronController.signup);
 routes.post('/login', nuronController.login);

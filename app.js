@@ -22,9 +22,4 @@ app.use('/user', userRoutes);
 
 app.use('/', nuronRoutes);
 
-// app.use((error, req, res, next) => {
-//   console.log('reach error handle');
-//   res.json({ msg: 'error' });
-// });
-
 app.listen(3000);

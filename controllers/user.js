@@ -8,6 +8,7 @@ const { formidable, errors: formidableErrors } = require('formidable');
 const path = require('path');
 const extensionExtractor = require('../utility/extension-extractor');
 const addDays = require('../utility/add-days');
+
 exports.editProfileImage = async (req, res) => {
   try {
     userImageUpdator(req, res, 'profile', 'profile', 'profile_image');
@@ -15,6 +16,7 @@ exports.editProfileImage = async (req, res) => {
     res.status(500).json();
   }
 };
+
 exports.editCoverImage = async (req, res) => {
   try {
     userImageUpdator(req, res, 'cover', 'cover', 'cover_image');
@@ -22,9 +24,11 @@ exports.editCoverImage = async (req, res) => {
     res.status(500).json();
   }
 };
+
 exports.editProfileInformation = async (req, res) => {
   try {
     const { firstName, lastName, email, bio, role, gender, currency, phoneNumber, location, address } = req.body;
+
     // Validation
     const schema = Joi.object().keys({
       firstName: Joi.string()
@@ -71,7 +75,6 @@ exports.editProfileInformation = async (req, res) => {
         .required()
         .custom((value) => escapeHtml(value)),
     });
-
     const validationResult = schema.validate({
       firstName,
       lastName,
@@ -84,14 +87,16 @@ exports.editProfileInformation = async (req, res) => {
       location,
       address,
     });
+
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
-    // Update
-    if (req.user.email != email) {
-      const userExist = await prisma.user.findFirst({ where: { email: email } });
-      if (userExist) return res.status(400).json({ userExist: true });
+    if (req.user.email != validationResult.value.email) {
+      const userExist = await prisma.user.findFirst({ where: { email: validationResult.value.email } });
+      if (userExist) return res.status(400).json({ userExist: 'Email exist' });
     }
-    const updatedUser = await prisma.user.update({
+
+    await prisma.user.update({
       where: { email: req.user.email },
       data: {
         first_name: validationResult.value.firstName,
@@ -106,16 +111,21 @@ exports.editProfileInformation = async (req, res) => {
         address: validationResult.value.address,
       },
     });
+
+    // Update user email in request
     req.user.email = email;
+
     res.status(200).json();
   } catch (error) {
     res.status(500).json();
   }
 };
+
 exports.changePassword = async (req, res) => {
   try {
     const { oldPassword, password, rePassword } = req.body;
 
+    // Validation
     const schema = Joi.object().keys({
       oldPassword: Joi.string().trim().min(8).max(128).required(),
       password: Joi.string().trim().min(8).max(128).required(),
@@ -129,25 +139,28 @@ exports.changePassword = async (req, res) => {
           return helpers.message('password and rePassword does not match');
         }),
     });
-
     const validationResult = schema.validate({
       oldPassword,
       password,
       rePassword,
     });
 
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
-    const { password: currentPassword } = await prisma.user.findFirst({
+    const { password: currentPasswordInDatabase } = await prisma.user.findFirst({
       where: {
         email: req.user.email,
       },
       select: { password: true },
     });
-    const isCorrectPassword = await bcrypt.compare(validationResult.value.oldPassword, currentPassword);
-    if (!isCorrectPassword) res.status(400).json({ incorrectPassword: 'your old password is incorrect' });
 
+    const isCorrectCurrentPassword = await bcrypt.compare(validationResult.value.oldPassword, currentPasswordInDatabase);
+    if (!isCorrectCurrentPassword) res.status(400).json({ incorrectPassword: 'your old password is incorrect' });
+
+    // Convert new password to hash
     const hashedPassword = await bcrypt.hash(validationResult.value.password, 12);
+
     await prisma.user.update({ where: { email: req.user.email }, data: { password: hashedPassword } });
 
     res.status(200).json();
@@ -177,42 +190,55 @@ exports.getMe = async (req, res) => {
         balance: true,
       },
     });
+
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json();
   }
 };
 
+// TODO Refactor needed
 exports.createNFT = async (req, res) => {
   try {
     const PRODUCT_PATH = '/product/';
+
     let fileExtensionError;
+
     const productImagesName = [];
-    // Upload Config
+
+    // Upload Configuration
     const form = formidable({
       maxFiles: 3,
       maxFileSize: 1 * 200 * 1024,
       uploadDir: path.join('public', 'product'),
       filter: ({ name, originalFilename, mimetype }) => {
+
         if (name != 'productImages') return false;
+
         const fileExtension = extensionExtractor(originalFilename);
         if (fileExtension != 'png' && fileExtension != 'jpg' && fileExtension != 'jpeg') {
           fileExtensionError = true;
           return false;
         }
+
         return true;
       },
       filename: (name, ext, part, form) => {
         const fileExtension = extensionExtractor(part.originalFilename);
+
         const randomNumber = Math.round(Math.random() * 1e10);
+
         const newFileName = `${randomNumber}.${fileExtension}`;
+
         productImagesName.push({ image: PRODUCT_PATH + newFileName });
+
         return newFileName;
       },
     });
 
     form.parse(req, async (err, fields, files) => {
       const { productName, description, royality, categoryId } = fields;
+
       // Validation
       const schema = Joi.object().keys({
         productName: Joi.string()
@@ -268,9 +294,11 @@ exports.createNFT = async (req, res) => {
     res.status(500).json();
   }
 };
+
 exports.favorite = async (req, res) => {
   try {
     const productId = req.body.productId;
+
     // Validation
     const schema = Joi.object().keys({
       productId: Joi.number().positive().required(),
@@ -278,9 +306,11 @@ exports.favorite = async (req, res) => {
     const validationResult = schema.validate({
       productId,
     });
+    
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
-    // Prevent twice like a product from same user
+    // Preventing duplicate "like" a product from same user
     const likedBefore = await prisma.likes.findFirst({
       where: {
         userId: req.user.id,
@@ -295,11 +325,13 @@ exports.favorite = async (req, res) => {
         userId: req.user.id,
       },
     });
+
     res.status(200).json();
   } catch (error) {
     res.status(500).json();
   }
 };
+
 exports.unfavorite = async (req, res) => {
   try {
     const productId = req.body.productId;
@@ -312,6 +344,7 @@ exports.unfavorite = async (req, res) => {
       productId,
     });
 
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
     await prisma.likes.deleteMany({
@@ -323,6 +356,7 @@ exports.unfavorite = async (req, res) => {
     res.status(500).json();
   }
 };
+
 exports.bid = async (req, res) => {
   try {
     const { productId, bidAmount } = req.body;
@@ -342,9 +376,11 @@ exports.bid = async (req, res) => {
       productId,
       bidAmount,
     });
+    
+    // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
-    // Check user balance
+    // Get user balance
     const { balance: userBalance } = await prisma.user.findFirst({
       where: {
         id: req.user.id,
@@ -354,7 +390,7 @@ exports.bid = async (req, res) => {
       },
     });
 
-    // Check total user bids amount
+    // Get total user bids amount
     const {
       _sum: { bidAmount: totalUserActiveBidsAmount },
     } = await prisma.bids.aggregate({
@@ -367,10 +403,10 @@ exports.bid = async (req, res) => {
       },
     });
 
+    // If the user has active bids, the money amount of those offers will be locked
     const userAvailableMoney = userBalance - totalUserActiveBidsAmount;
-
     if (userAvailableMoney < validationResult.value.bidAmount)
-      return res.status(400).json({ notEnoughMoney: 'Your balance is not enough' });
+      return res.status(400).json({ notEnoughMoney: 'Your available balance is not enough' });
 
     const product = await prisma.product.findFirst({
       where: {
@@ -383,9 +419,11 @@ exports.bid = async (req, res) => {
         },
       },
     });
-    const { bidAmount: highestBidAmount } = product.Bids.at(0) ?? Number.NEGATIVE_INFINITY;
-
+    // Checking bid's expire time
     if (product.expireTime < Date.now()) return res.status(400).json({ expireTime: 'bid time has ended' });
+
+    // Getting highest bid amount for this product from other users
+    const { bidAmount: highestBidAmount } = product.Bids.at(0) ?? Number.NEGATIVE_INFINITY;
 
     if (validationResult.value.bidAmount <= highestBidAmount)
       return res.status(400).json({ notEnoughBid: 'Your bid amount is not enough' });
