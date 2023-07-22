@@ -25,7 +25,7 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
     filter: ({ name, originalFilename, mimetype }) => {
       if (name != imageKeyName) return false;
       const fileExtension = extensionExtractor(originalFilename);
-      if (fileExtension != 'png' && fileExtension && 'jpg' && fileExtension != 'jpeg') {
+      if (fileExtension != 'png' && fileExtension != 'jpg' && fileExtension != 'jpeg') {
         fileExtensionError = true;
         return false;
       }
