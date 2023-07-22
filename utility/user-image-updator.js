@@ -39,6 +39,8 @@ module.exports = async (req, res, uplodaDir, imageKeyName, dbColumnName) => {
   });
 
   form.parse(req, async (err, fields, files) => {
+    if (files[imageKeyName]?.length != 1) return res.status(400).json({ invalidTotalFiles: 'You must send one file' });
+
     if (err?.code == formidableErrors.biggerThanTotalMaxFileSize) {
       return res.status(400).json({ maxSize: 'Max file size is 200kb' });
     }
