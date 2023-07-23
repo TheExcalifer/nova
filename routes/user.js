@@ -7,7 +7,6 @@ const userController = require('../controllers/user');
 // JWT Authenticator
 const isAuth = require('../middleware/is-auth');
 
-routes.get('/:id', userController.getUser);
 routes.post('/follow-status', isAuth, userController.followStatus);
 
 routes.post('/edit/profile-image', isAuth, userController.editProfileImage);
@@ -26,4 +25,5 @@ routes.post('/bid', isAuth, userController.bid);
 routes.post('/follow', isAuth, userController.follow);
 routes.post('/unfollow', isAuth, userController.unfollow);
 
+routes.get('/:id', userController.getUser);
 module.exports = routes;
