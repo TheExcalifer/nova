@@ -155,7 +155,10 @@ exports.changePassword = async (req, res) => {
       select: { password: true },
     });
 
-    const isCorrectCurrentPassword = await bcrypt.compare(validationResult.value.oldPassword, currentPasswordInDatabase);
+    const isCorrectCurrentPassword = await bcrypt.compare(
+      validationResult.value.oldPassword,
+      currentPasswordInDatabase
+    );
     if (!isCorrectCurrentPassword) res.status(400).json({ incorrectPassword: 'your old password is incorrect' });
 
     // Convert new password to hash
@@ -212,7 +215,6 @@ exports.createNFT = async (req, res) => {
       maxFileSize: 1 * 200 * 1024,
       uploadDir: path.join('public', 'product'),
       filter: ({ name, originalFilename, mimetype }) => {
-
         if (name != 'productImages') return false;
 
         const fileExtension = extensionExtractor(originalFilename);
@@ -306,7 +308,7 @@ exports.favorite = async (req, res) => {
     const validationResult = schema.validate({
       productId,
     });
-    
+
     // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
@@ -376,7 +378,7 @@ exports.bid = async (req, res) => {
       productId,
       bidAmount,
     });
-    
+
     // Error Handling
     if (validationResult.error) return res.status(400).json(validationResult.error);
 
@@ -437,6 +439,98 @@ exports.bid = async (req, res) => {
     });
 
     return res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.follow = async (req, res) => {
+  try {
+    const userId = req.body.userId;
+    // Validation
+    const schema = Joi.object().keys({
+      userId: Joi.number().positive().required(),
+    });
+    const validationResult = schema.validate({
+      userId,
+    });
+
+    // Error Handling
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    // Preventing follow yourself
+    if (req.user.id == userId) return res.status(400).json({ followYourself: 'You can not follow yourself' });
+
+    // Preventing like someone twice
+    const duplicateFollow = await prisma.following.findFirst({
+      where: { userId: req.user.id, followingUserId: validationResult.value.userId },
+    });
+    if (duplicateFollow) return res.status(400).json({ duplicateFollow: 'You have been follow this user' });
+
+    // Success Follow
+    await prisma.following.create({ data: { userId: req.user.id, followingUserId: validationResult.value.userId } });
+
+    res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.unfollow = async (req, res) => {
+  try {
+    const userId = req.body.userId;
+    // Validation
+    const schema = Joi.object().keys({
+      userId: Joi.number().positive().required(),
+    });
+    const validationResult = schema.validate({
+      userId,
+    });
+
+    // Error Handling
+    if (validationResult.error) return res.status(400).json(validationResult.error);
+
+    // Success Unfollow
+    await prisma.following.deleteMany({
+      where: { userId: req.user.id, followingUserId: validationResult.value.userId },
+    });
+
+    res.status(200).json();
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.getUser = async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId },
+      select: {
+        first_name: true,
+        last_name: true,
+        owner: { include: { Bids: true } },
+        Likes: { include: { product: { include: { Bids: true } } } },
+        creator: { include: { Bids: true } },
+        _count: { select: { follower: true, following: true } },
+      },
+    });
+    // Error Handling
+    if (!user) return res.status(404).json();
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json();
+  }
+};
+
+exports.followStatus = async (req, res) => {
+  try {
+    const userId = Number(req.body.userId);
+    const followStatus = await prisma.following.findFirst({ where: { userId: req.user.id, followingUserId: userId } });
+    // Error Handling
+    if (!followStatus) res.status(404).json();
+    res.status(200).json(followStatus);
   } catch (error) {
     res.status(500).json();
   }

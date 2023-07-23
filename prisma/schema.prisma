@@ -11,25 +11,27 @@ datasource db {
 }
 
 model User {
-  id            Int       @id @default(autoincrement())
-  first_name    String    @db.VarChar(64)
-  last_name     String    @db.VarChar(64)
-  email         String    @unique @db.VarChar(254)
-  password      String    @db.VarChar(128)
-  profile_image String?   @db.VarChar(128)
-  cover_image   String?   @db.VarChar(128)
-  role          String?   @db.VarChar(64)
-  gender        String?   @db.VarChar(16)
-  currency      String?   @db.VarChar(16)
-  phone_number  String?   @db.VarChar(16)
-  location      String?   @db.VarChar(32)
-  address       String?   @db.VarChar(128)
-  bio           String?   @db.VarChar(256)
-  balance       Decimal   @default(1000) @db.Decimal(13, 2)
-  creator       Product[] @relation(name: "creator")
-  owner         Product[] @relation(name: "owner")
+  id            Int         @id @default(autoincrement())
+  first_name    String      @db.VarChar(64)
+  last_name     String      @db.VarChar(64)
+  email         String      @unique @db.VarChar(254)
+  password      String      @db.VarChar(128)
+  profile_image String?     @db.VarChar(128)
+  cover_image   String?     @db.VarChar(128)
+  role          String?     @db.VarChar(64)
+  gender        String?     @db.VarChar(16)
+  currency      String?     @db.VarChar(16)
+  phone_number  String?     @db.VarChar(16)
+  location      String?     @db.VarChar(32)
+  address       String?     @db.VarChar(128)
+  bio           String?     @db.VarChar(256)
+  balance       Decimal     @default(1000) @db.Decimal(13, 2)
+  creator       Product[]   @relation(name: "creator")
+  owner         Product[]   @relation(name: "owner")
   Likes         Likes[]
   Bids          Bids[]
+  follower      Following[] @relation(name: "follower")
+  following     Following[] @relation(name: "following")
 }
 
 model Contact {
@@ -92,4 +94,12 @@ model Likes {
   userId    Int
   product   Product @relation(fields: [productId], references: [id])
   user      User    @relation(fields: [userId], references: [id])
+}
+
+model Following {
+  id              Int  @id @default(autoincrement())
+  userId          Int
+  followingUserId Int
+  following       User @relation(name: "following", fields: [userId], references: [id])
+  follower        User @relation(name: "follower", fields: [followingUserId], references: [id])
 }

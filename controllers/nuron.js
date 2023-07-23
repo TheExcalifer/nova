@@ -269,7 +269,7 @@ exports.getRecentView = async (req, res) => {
 exports.getRelatedProductByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    
+
     // Validation
     const schema = Joi.object().keys({
       categoryId: Joi.number().required(),
@@ -353,7 +353,7 @@ exports.getProducts = async (req, res) => {
       skip: (page - 1) * ITEM_PER_PAGE,
       take: ITEM_PER_PAGE,
     });
-    
+
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json();
@@ -369,7 +369,7 @@ exports.getProductsPrice = async (req, res) => {
       _min: { bidAmount: true },
       _max: { bidAmount: true },
     });
-    
+
     res.status(200).json({ minPrice: Number(minPrice), maxPrice: Number(maxPrice) });
   } catch (error) {
     res.status(500).json();

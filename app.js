@@ -16,9 +16,9 @@ app.use((req, res, next) => {
 app.use(express.static(path.join((__dirname, 'public'))));
 
 app.use(bodyParser.json());
+
 // ? Cron Job, executing every 1 minute
 new CronJob('* * * * *', async () => {
-  console.log('Every one minute'); // ! remove this
   const updateProductWithoutBids = await prisma.product.updateMany({
     where: {
       Bids: {
