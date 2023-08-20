@@ -1,3 +1,5 @@
 node_modules
 .env
-public
+public/user/profile/*.png
+public/user/cover/*.png
+public/product/*.png
