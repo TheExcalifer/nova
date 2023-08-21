@@ -2,9 +2,10 @@ const jwt = require('jsonwebtoken');
 module.exports = (req, res, next) => {
   try {
     const token = req.get('Authorization');
+    const JWT_SECRET = process.env.JWT_SECRET;
     let decodedToken;
     try {
-      decodedToken = jwt.verify(token, '4LZpJPii2NW4NFJxTwueL76XnqZPn4Qr');
+      decodedToken = jwt.verify(token, JWT_SECRET);
     } catch (error) {
       return res.status(401).json({authentication: 'You are not autheticated' });
     }

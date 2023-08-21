@@ -109,7 +109,7 @@ exports.login = async (req, res) => {
       });
 
     // ! JWT Token must transfer to .env and chnage it's value
-    const JWT_SECRET = '4LZpJPii2NW4NFJxTwueL76XnqZPn4Qr';
+    const JWT_SECRET = process.env.JWT_SECRET;
     const payload = {
       id: user.id,
       email: user.email,
