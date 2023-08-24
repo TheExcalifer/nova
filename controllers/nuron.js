@@ -96,27 +96,41 @@ exports.login = async (req, res) => {
       where: {
         email: validationResult.value.email,
       },
+      select: {
+        first_name: true,
+        last_name: true,
+        email: true,
+        profile_image: true,
+        cover_image: true,
+        password: true,
+      },
     });
-    if (!user)
+
+    if (!user) {
       return res.status(400).json({
         userOrPassword: 'Email or password is incorrect',
       });
+    }
 
     const isCorrectPassword = await bcrypt.compare(password, user.password);
-    if (!isCorrectPassword)
+
+    if (!isCorrectPassword) {
       return res.status(400).json({
         userOrPassword: 'Email or password is incorrect',
       });
-
-    // ! JWT Token must transfer to .env and chnage it's value
+    }
     const JWT_SECRET = process.env.JWT_SECRET;
     const payload = {
       id: user.id,
       email: user.email,
     };
-    const expireTime = { expiresIn: '6h' };
+    const expireTime = { expiresIn: '14d' };
     const token = jwt.sign(payload, JWT_SECRET, expireTime);
-    res.status(200).json({ token });
+
+    delete user.password;
+    user.token = token;
+    
+    res.status(200).json(user);
   } catch (error) {
     res.status(500).json();
   }

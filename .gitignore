@@ -3,3 +3,4 @@ node_modules
 public/user/profile/*.png
 public/user/cover/*.png
 public/product/*.png
+.vscode
