@@ -94,6 +94,7 @@ exports.login = async (req, res) => {
 
     const user = await prisma.user.findFirst({
       where: {
+        id: validationResult.value.id,
         email: validationResult.value.email,
       },
       select: {
@@ -129,7 +130,7 @@ exports.login = async (req, res) => {
 
     delete user.password;
     user.token = token;
-    
+
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json();
