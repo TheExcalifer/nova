@@ -65,10 +65,11 @@ model Product {
 }
 
 model Product_Image {
-  id        Int     @id @default(autoincrement())
-  image     String? @db.VarChar(128)
-  product   Product @relation(fields: [productId], references: [id])
-  productId Int
+  id          Int     @id @default(autoincrement())
+  image       String? @db.VarChar(128)
+  placeholder String? @db.VarChar(600)
+  product     Product @relation(fields: [productId], references: [id])
+  productId   Int
 }
 
 model Bids {
