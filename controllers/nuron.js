@@ -94,10 +94,10 @@ exports.login = async (req, res) => {
 
     const user = await prisma.user.findFirst({
       where: {
-        id: validationResult.value.id,
         email: validationResult.value.email,
       },
       select: {
+        id: true,
         first_name: true,
         last_name: true,
         email: true,
