@@ -120,12 +120,12 @@ exports.login = async (req, res) => {
         userOrPassword: 'Email or password is incorrect',
       });
     }
-    const JWT_SECRET = process.env.JWT_SECRET;
     const payload = {
       id: user.id,
       email: user.email,
     };
-    const expireTime = { expiresIn: '14d' };
+    const JWT_SECRET = process.env.JWT_SECRET;
+    const expireTime = { expiresIn: process.env.JWT_EXPIRE_TIME };
     const token = jwt.sign(payload, JWT_SECRET, expireTime);
 
     delete user.password;
