@@ -1,6 +1,12 @@
 node_modules
 .env
 public/user/profile/*.png
+public/user/profile/*.jpg
+public/user/profile/*.jpeg
 public/user/cover/*.png
+public/user/cover/*.jpg
+public/user/cover/*.jpeg
 public/product/*.png
+public/product/*.jpg
+public/product/*.jpeg
 .vscode
