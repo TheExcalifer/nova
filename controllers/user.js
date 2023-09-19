@@ -203,59 +203,95 @@ exports.getMe = async (req, res) => {
 // TODO Refactor needed
 exports.createNFT = async (req, res) => {
   try {
-    const { productName, description, royality, categoryId, productImages } = req.body;
-    // Validation
+    const PRODUCT_PATH = '/product/';
 
-    const schema = Joi.object().keys({
-      productName: Joi.string()
-        .trim()
-        .required()
-        .custom((value) => escapeHtml(value)),
-      description: Joi.string()
-        .trim()
-        .required()
-        .custom((value) => escapeHtml(value)),
-      royality: Joi.number().min(0).max(99).required(),
-      categoryId: Joi.number().required(),
-      productImages: Joi.array().length(3).items(Joi.object()).required(),
-    });
-    const validationResult = schema.validate({
-      productName,
-      description,
-      royality,
-      categoryId,
-      productImages,
-    });
+    let fileExtensionError;
 
-    // Error handling
-    const existCategory = await prisma.category.findFirst({ where: { id: validationResult.value.categoryId } });
-    if (!existCategory) return res.status(400).json({ invalidCategoryId: 'Category is invalid' });
+    const productImagesName = [];
 
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    // Upload Configuration
+    const form = formidable({
+      maxFiles: 3,
+      maxFileSize: 1 * 200 * 1024,
+      uploadDir: path.join('public', 'product'),
+      filter: ({ name, originalFilename, mimetype }) => {
+        if (name != 'productImages') return false;
 
-    // Reformat data for Prisma
-    const productImagesData = [];
-    productImages.forEach((productImage) => {
-      productImagesData.push({
-        image: productImage.src,
-        placeholder: productImage.meta.placeholder,
-      });
-    });
+        const fileExtension = extensionExtractor(originalFilename);
+        if (fileExtension != 'png' && fileExtension != 'jpg' && fileExtension != 'jpeg') {
+          fileExtensionError = true;
+          return false;
+        }
 
-    const createdProduct = await prisma.product.create({
-      data: {
-        productName: validationResult.value.productName,
-        description: validationResult.value.description,
-        royality: validationResult.value.royality,
-        categoryId: validationResult.value.categoryId,
-        creatorId: req.user.id,
-        ownerId: req.user.id,
-        expireTime: addDays(new Date(), 1),
-        Product_Image: { createMany: { data: productImagesData } },
+        return true;
+      },
+      filename: (name, ext, part, form) => {
+        const fileExtension = extensionExtractor(part.originalFilename);
+
+        const randomNumber = Math.round(Math.random() * 1e10);
+
+        const newFileName = `${randomNumber}.${fileExtension}`;
+
+        productImagesName.push({ image: PRODUCT_PATH + newFileName });
+
+        return newFileName;
       },
     });
 
-    res.status(201).json(createdProduct);
+    form.parse(req, async (err, fields, files) => {
+      const { productName, description, royality, categoryId } = fields;
+
+      // Validation
+      const schema = Joi.object().keys({
+        productName: Joi.string()
+          .trim()
+          .required()
+          .custom((value) => escapeHtml(value)),
+        description: Joi.string()
+          .trim()
+          .required()
+          .custom((value) => escapeHtml(value)),
+        royality: Joi.number().min(0).max(99).required(),
+        categoryId: Joi.number().required(),
+      });
+      const validationResult = schema.validate({
+        productName: productName[0],
+        description: description[0],
+        royality: Number(royality[0]),
+        categoryId: Number(categoryId[0]),
+      });
+
+      // Error handling
+      if (files.productImages?.length != 3) return res.status(400).json({ invalidTotalFiles: 'You must send 3 files' });
+
+      const existCategory = await prisma.category.findFirst({ where: { id: validationResult.value.categoryId } });
+      if (!existCategory) return res.status(400).json({ invalidCategoryId: 'Category is invalid' });
+
+      if (validationResult.error) return res.status(400).json(validationResult.error);
+
+      if (err?.code == formidableErrors.biggerThanTotalMaxFileSize)
+        return res.status(400).json({ maxFileNumber: 'Max file size is 200kb' });
+
+      if (err?.code == formidableErrors.maxFilesExceeded)
+        return res.status(400).json({ maxFileNumber: 'Max number of file is 3' });
+
+      if (fileExtensionError) return res.status(400).json({ allowFormat: 'Allow formats: jpeg, jpg, png' });
+
+      const createdProduct = await prisma.product.create({
+        data: {
+          productName: validationResult.value.productName,
+          description: validationResult.value.description,
+          royality: validationResult.value.royality,
+          categoryId: validationResult.value.categoryId,
+          creatorId: req.user.id,
+          ownerId: req.user.id,
+          expireTime: addDays(new Date(), 1),
+          Product_Image: { createMany: { data: productImagesName } },
+        },
+      });
+
+      res.status(200).json(createdProduct);
+    });
   } catch (error) {
     res.status(500).json();
   }
