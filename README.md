@@ -28,4 +28,4 @@
 
 ### Postman Doc Link
 You can work with API in postman:
-[NFT API](https://www.postman.com/theexcalifer/workspace/public-projects)
+[NFT API](https://www.postman.com/theexcalifer/workspace/nft)
