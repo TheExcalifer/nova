@@ -82,11 +82,11 @@ new CronJob('* * * * *', async () => {
 }).start();
 
 // routes
-const nuronRoutes = require('./routes/nuron');
+const novaRoutes = require('./routes/nova');
 const userRoutes = require('./routes/user');
 
 app.use('/user', userRoutes);
 
-app.use('/', nuronRoutes);
+app.use('/', novaRoutes);
 
 app.listen(3000);

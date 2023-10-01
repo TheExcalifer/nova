@@ -1,5 +1,5 @@
 {
-  "name": "NFT API",
+  "name": "Nova",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
@@ -9,14 +9,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheExcalifer/NFT-API"
+    "url": "https://github.com/TheExcalifer/nova"
   },
   "author": "Behnam",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/TheExcalifer/NFT-API/issues"
+    "url": "https://github.com/TheExcalifer/nova/issues"
   },
-  "homepage": "https://github.com/TheExcalifer/NFT-API#readme",
+  "homepage": "https://github.com/TheExcalifer/nova#readme",
   "dependencies": {
     "@hapi/hoek": "^11.0.2",
     "@prisma/client": "^4.16.1",
