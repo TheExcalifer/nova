@@ -1,13 +1,3 @@
-### Used Techonologies
-
-- [Node.js](https://nodejs.org/en)
-- [Express](https://expressjs.com/)
-- [Prisma](https://www.prisma.io/)
-- [Cron](https://www.npmjs.com/package/cron)
-- [Joi](https://joi.dev/)
-- [Formidable](https://www.npmjs.com/package/formidable)
-- [PostgreSQL](https://www.postgresql.org/)
-
 ### Proejct Features
 
 - Edit Profile
@@ -26,6 +16,12 @@
 - Signup
 - etc.
 
-### Postman Doc Link
-You can work with API in postman:
-[NFT API](https://www.postman.com/theexcalifer/workspace/nft)
+### Used Techonologies
+
+- [Node.js](https://nodejs.org/en)
+- [Express](https://expressjs.com/)
+- [Prisma](https://www.prisma.io/)
+- [Cron](https://www.npmjs.com/package/cron)
+- [Joi](https://joi.dev/)
+- [Formidable](https://www.npmjs.com/package/formidable)
+- [PostgreSQL](https://www.postgresql.org/)
