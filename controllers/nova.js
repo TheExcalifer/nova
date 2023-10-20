@@ -7,7 +7,8 @@ const { escapeHtml } = require('@hapi/hoek');
 
 exports.signup = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, rePassword, agree } = req.body;
+    const { firstName, lastName, email, password, rePassword, agree } =
+      req.body;
 
     // Validation
     const schema = Joi.object().keys({
@@ -16,13 +17,13 @@ exports.signup = async (req, res) => {
         .min(3)
         .max(64)
         .required()
-        .custom((value) => escapeHtml(value)),
+        .custom(value => escapeHtml(value)),
       lastName: Joi.string()
         .trim()
         .min(3)
         .max(64)
         .required()
-        .custom((value) => escapeHtml(value)),
+        .custom(value => escapeHtml(value)),
       email: Joi.string().lowercase().email().min(3).max(254).required(),
       password: Joi.string().trim().min(8).max(128).required(),
       rePassword: Joi.string()
@@ -47,7 +48,8 @@ exports.signup = async (req, res) => {
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
     const userExist = await prisma.user.findFirst({
       where: {
@@ -57,7 +59,10 @@ exports.signup = async (req, res) => {
     if (userExist) return res.status(400).json({ userExist: 'Email exist' });
 
     // Convert password to hash
-    const hashedPassword = await bcrypt.hash(validationResult.value.password, 12);
+    const hashedPassword = await bcrypt.hash(
+      validationResult.value.password,
+      12
+    );
 
     // Create User
     const createdUser = await prisma.user.create({
@@ -69,7 +74,7 @@ exports.signup = async (req, res) => {
       },
     });
 
-    res.status(201).json();
+    res.status(201).json(createdUser);
   } catch (error) {
     res.status(500).json();
   }
@@ -90,7 +95,8 @@ exports.login = async (req, res) => {
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
     const user = await prisma.user.findFirst({
       where: {
@@ -147,18 +153,18 @@ exports.contactUs = async (req, res) => {
         .min(3)
         .max(128)
         .required()
-        .custom((value) => escapeHtml(value)),
+        .custom(value => escapeHtml(value)),
       email: Joi.string().lowercase().email().min(3).max(254).required(),
       subject: Joi.string()
         .min(10)
         .max(64)
         .required()
-        .custom((value) => escapeHtml(value)),
+        .custom(value => escapeHtml(value)),
       message: Joi.string()
         .min(10)
         .max(300)
         .required()
-        .custom((value) => escapeHtml(value)),
+        .custom(value => escapeHtml(value)),
     });
     const validationResult = schema.validate({
       name,
@@ -168,9 +174,10 @@ exports.contactUs = async (req, res) => {
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
-    await prisma.contact.create({
+    const contactUs = await prisma.contact.create({
       data: {
         name: validationResult.value.name,
         email: validationResult.value.email,
@@ -179,7 +186,7 @@ exports.contactUs = async (req, res) => {
       },
     });
 
-    res.status(201).json();
+    res.status(201).json(contactUs);
   } catch (error) {
     res.status(500).json();
   }
@@ -198,11 +205,17 @@ exports.newsletter = async (req, res) => {
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
-    await prisma.newsletter.create({ data: { email: validationResult.value.email } });
-
-    res.status(201).json();
+    try {
+      const newsletter = await prisma.newsletter.create({
+        data: { email: validationResult.value.email },
+      });
+      res.status(201).json(newsletter);
+    } catch (error) {
+      res.status(400).json();
+    }
   } catch (error) {
     res.status(500).json();
   }
@@ -267,7 +280,8 @@ exports.getRecentView = async (req, res) => {
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
     const products = await prisma.product.findMany({
       where: {
@@ -294,7 +308,8 @@ exports.getRelatedProductByCategory = async (req, res) => {
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
     const products = await prisma.product.findMany({
       where: {
@@ -317,31 +332,34 @@ exports.getProducts = async (req, res) => {
     // Validation
     const schema = Joi.object().keys({
       page: Joi.number().required().positive(),
-      sortByLeastLike: Joi.boolean().required(),
+      sortByLeastLike: Joi.boolean(),
       categoryId: Joi.number().positive(),
       minPrice: Joi.number().positive(),
       maxPrice: Joi.number().positive(),
     });
     const validationResult = schema.validate({
-      page,
-      sortByLeastLike,
-      categoryId,
-      minPrice,
-      maxPrice,
+      ...req.body,
     });
 
     // Error Handling
-    if (validationResult.error) return res.status(400).json(validationResult.error);
+    if (validationResult.error)
+      return res.status(400).json(validationResult.error);
 
     // Filter Conditions
-    let minAndMaxPriceCondition = (minPrice, maxPrice) => {
+    const minAndMaxPriceCondition = (minPrice, maxPrice) => {
       if (minPrice && maxPrice) {
         return {
-          AND: [{ bidAmount: { gte: minPrice } }, { bidAmount: { lte: maxPrice } }],
+          AND: [
+            { bidAmount: { gte: minPrice } },
+            { bidAmount: { lte: maxPrice } },
+          ],
         };
       }
     };
-    let sortByLeastLikeCondition = (sortByLeastLike) => {
+    const sortByLeastLikeCondition = sortByLeastLike => {
+      if (sortByLeastLike === undefined) {
+        return null;
+      }
       if (sortByLeastLike) {
         return {
           Likes: {
@@ -349,6 +367,11 @@ exports.getProducts = async (req, res) => {
           },
         };
       }
+      return {
+        Likes: {
+          _count: 'desc',
+        },
+      };
     };
 
     const products = await prisma.product.findMany({
@@ -368,6 +391,7 @@ exports.getProducts = async (req, res) => {
       skip: (page - 1) * ITEM_PER_PAGE,
       take: ITEM_PER_PAGE,
     });
+    if (products.length === 0) return res.status(404).json();
 
     res.status(200).json(products);
   } catch (error) {
@@ -385,7 +409,9 @@ exports.getProductsPrice = async (req, res) => {
       _max: { bidAmount: true },
     });
 
-    res.status(200).json({ minPrice: Number(minPrice), maxPrice: Number(maxPrice) });
+    res
+      .status(200)
+      .json({ minPrice: Number(minPrice), maxPrice: Number(maxPrice) });
   } catch (error) {
     res.status(500).json();
   }

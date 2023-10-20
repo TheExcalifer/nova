@@ -1,7 +1,5 @@
 ### Proejct Features
 
-**Note:** The image upload functionality works on the local machine, but it doesn’t work on the server due to its limit.
-
 - Edit Profile
   - Profile Image
   - banner Image
@@ -25,5 +23,4 @@
 - [Prisma](https://www.prisma.io/)
 - [Cron](https://www.npmjs.com/package/cron)
 - [Joi](https://joi.dev/)
-- [Formidable](https://www.npmjs.com/package/formidable)
 - [PostgreSQL](https://www.postgresql.org/)
