@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, Prisma } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcryptjs');
 const Joi = require('joi');
@@ -9,7 +9,41 @@ const arvanS3 = require('../utility/arvan-s3');
 const nameGenerator = require('../utility/name-generator');
 exports.editProfileImage = async (req, res) => {
   try {
-    userImageUpdator(req, res, 'profile', 'profile', 'profile_image');
+    const profileImage = req.file;
+
+    const profileImageSizeInMB = profileImage.size / 1024 / 1024;
+    if (profileImageSizeInMB > 0.2)
+      return res.status(400).json({ error: 'Maximum file size is 200kb' });
+
+    //  example: name.jpg => jpg
+    const imageExtension = profileImage.originalname.split('.').at(-1);
+    if (
+      imageExtension !== 'jpg' &&
+      imageExtension !== 'jpeg' &&
+      imageExtension !== 'png'
+    )
+      return res
+        .status(400)
+        .json({ error: 'Allowed extension: jpg, jpeg, png' });
+
+    const uploadParams = {
+      Bucket: process.env.BUCKET_NAME, // bucket name
+      Key: nameGenerator(imageExtension), // the name of the selected file
+      ACL: 'public-read', // 'private' | 'public-read'
+      Body: profileImage.buffer,
+    };
+
+    try {
+      await arvanS3.send(new PutObjectCommand(uploadParams));
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: { profile_image: process.env.BUCKET_ADDRESS + uploadParams.Key },
+        select: { email: true, profile_image: true },
+      });
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      throw new Error();
+    }
   } catch (error) {
     res.status(500).json();
   }
@@ -17,7 +51,41 @@ exports.editProfileImage = async (req, res) => {
 
 exports.editCoverImage = async (req, res) => {
   try {
-    userImageUpdator(req, res, 'cover', 'cover', 'cover_image');
+    const coverImage = req.file;
+
+    const coverImageSizeInMB = coverImage.size / 1024 / 1024;
+    if (coverImageSizeInMB > 0.2)
+      return res.status(400).json({ error: 'Maximum file size is 200kb' });
+
+    //  example: name.jpg => jpg
+    const imageExtension = coverImage.originalname.split('.').at(-1);
+    if (
+      imageExtension !== 'jpg' &&
+      imageExtension !== 'jpeg' &&
+      imageExtension !== 'png'
+    )
+      return res
+        .status(400)
+        .json({ error: 'Allowed extension: jpg, jpeg, png' });
+
+    const uploadParams = {
+      Bucket: process.env.BUCKET_NAME, // bucket name
+      Key: nameGenerator(imageExtension), // the name of the selected file
+      ACL: 'public-read', // 'private' | 'public-read'
+      Body: coverImage.buffer,
+    };
+
+    try {
+      await arvanS3.send(new PutObjectCommand(uploadParams));
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: { cover_image: process.env.BUCKET_ADDRESS + uploadParams.Key },
+        select: { email: true, cover_image: true },
+      });
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      throw new Error();
+    }
   } catch (error) {
     res.status(500).json();
   }
@@ -290,6 +358,16 @@ exports.createNFT = async (req, res) => {
       //  example: name.jpg => jpg
       const imageExtension = productImage.originalname.split('.').at(-1);
 
+      if (
+        imageExtension !== 'jpg' &&
+        imageExtension !== 'jpeg' &&
+        imageExtension !== 'png'
+      ) {
+        return res
+          .status(400)
+          .json({ error: 'Allowed extension: jpg, jpeg, png' });
+        break;
+      }
       // Arvan S3 Options
       const uploadParams = {
         Bucket: process.env.BUCKET_NAME, // bucket name

@@ -12,8 +12,13 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 routes.post('/follow-status', isAuth, userController.followStatus);
 
-routes.post('/edit/profile-image', isAuth, userController.editProfileImage);
-routes.post('/edit/cover-image', isAuth, userController.editCoverImage);
+routes.post(
+  '/edit/profile-image',
+  isAuth,
+  upload.single('profile'),
+  userController.editProfileImage
+);
+routes.post('/edit/cover-image', isAuth,upload.single('cover'), userController.editCoverImage);
 routes.patch(
   '/edit/profile-information',
   isAuth,
@@ -23,7 +28,12 @@ routes.patch('/edit/password', isAuth, userController.changePassword);
 
 routes.get('/me', isAuth, userController.getMe);
 
-routes.post('/create-nft', isAuth,upload.array('productImages'), userController.createNFT);
+routes.post(
+  '/create-nft',
+  isAuth,
+  upload.array('productImages'),
+  userController.createNFT
+);
 
 routes.post('/favorite', isAuth, userController.favorite);
 routes.post('/unfavorite', isAuth, userController.unfavorite);
