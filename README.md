@@ -26,3 +26,7 @@
 - [PostgreSQL](https://www.postgresql.org/)
 - [Multer](https://www.npmjs.com/package/multer)
 - [Client-s3](https://www.npmjs.com/package/@aws-sdk/client-s3)
+
+### Deploy
+
+Create a row in category table.
